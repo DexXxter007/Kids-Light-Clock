@@ -1,0 +1,8 @@
+# Wokwi Library List
+# See https://docs.wokwi.com/guides/libraries
+
+TM1637
+DS1307RTC
+Adafruit NeoPixel
+RTClib
+DS3231

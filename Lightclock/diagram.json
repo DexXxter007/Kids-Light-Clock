@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 62.4, "left": -67.7, "attrs": {} },
+    {
+      "type": "wokwi-led-ring",
+      "id": "ring1",
+      "top": -210.56,
+      "left": -114.01,
+      "attrs": { "pixels": "16" }
+    },
+    { "type": "wokwi-ds1307", "id": "rtc1", "top": -72.6, "left": 134.5, "attrs": {} },
+    {
+      "type": "wokwi-tm1637-7segment",
+      "id": "sevseg2",
+      "top": 153.56,
+      "left": -290.57,
+      "attrs": { "color": "red" }
+    }
+  ],
+  "connections": [
+    [ "sevseg2:CLK", "nano:2", "green", [ "h19.2", "v-163.2", "h144" ] ],
+    [ "sevseg2:DIO", "nano:3", "green", [ "h28.8", "v-163.2", "h124.8" ] ],
+    [ "sevseg2:GND", "nano:GND.2", "black", [ "h230.4", "v-163.2", "h-86.4" ] ],
+    [ "sevseg2:VCC", "nano:5V", "red", [ "h0" ] ],
+    [ "ring1:GND", "nano:GND.2", "black", [ "v38.4", "h48" ] ],
+    [ "rtc1:GND", "nano:GND.2", "black", [ "h0" ] ],
+    [ "rtc1:5V", "nano:5V", "red", [ "h-19.2", "v191.6", "h-67.2" ] ],
+    [ "rtc1:SCL", "nano:A5", "green", [ "h0" ] ],
+    [ "rtc1:SDA", "nano:A4", "green", [ "h0" ] ],
+    [ "ring1:DIN", "nano:11", "green", [ "v0" ] ],
+    [ "ring1:VCC", "nano:5V", "red", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
