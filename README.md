@@ -27,8 +27,8 @@ The alarm clock was realized with an Arduino and the Arduino IDE. By programming
 - Arduino IDE
 
 
-
-
+---
+---
 
 ## Projektbeschreibung
 
