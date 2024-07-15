@@ -1,5 +1,6 @@
 # Kid-s-Light-Clock
 
+![Kids-Light-Clock](/IMG20240223191006.jpg)
 
 ## Projektbeschreibung
 
