@@ -20,6 +20,11 @@
 #define DAY_START_HOUR 7
 #define DAY_END_HOUR 8
 
+// Einstellen der Farben für die Uhrezeiten, (ROT, GRÜN, BLAU) von 0 aus bis 255 maximale Helligkeit
+#define COLOR_NIGHT (255, 130, 0)
+#define COLOR_MORNING (255, 50, 0)
+#define COLOR_DAY (0, 255, 0)
+
 RTC_DS1307 rtc;
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel pixels2 = Adafruit_NeoPixel(NUMPIXELS, NEOPIXEL_PIN2, NEO_GRB + NEO_KHZ800);
@@ -30,6 +35,7 @@ bool lastButtonState = HIGH;
 bool ring2State = false;
 unsigned long buttonPressTime = 0;
 bool longPressHandled = false;
+unsigned long lastInputTime = 0; // Zeit der letzten Eingabe
 
 enum Mode {
   NORMAL,
@@ -99,6 +105,7 @@ void loop() {
   if (buttonState == LOW && lastButtonState == HIGH) {
     buttonPressTime = millis();
     longPressHandled = false;
+    lastInputTime = millis(); // Zeit der letzten Eingabe aktualisieren
   } else if (buttonState == HIGH && lastButtonState == LOW) {
     unsigned long buttonPressDuration = millis() - buttonPressTime;
     if (buttonPressDuration < 2000 && !longPressHandled) {
@@ -142,7 +149,12 @@ void loop() {
 
   lastButtonState = buttonState;
 
-  delay(100);
+  // Überprüfen, ob seit der letzten Eingabe mehr als 10 Sekunden vergangen sind
+  if (mode != NORMAL && millis() - lastInputTime >= 15000) {
+    mode = NORMAL; // Setzen Sie den Modus auf NORMAL zurück
+  }
+
+  delay(50); // Reduzierte Verzögerung für genauere Zeitüberwachung
 }
 
 void showTime(int stunde, int minute, bool blink) {
@@ -179,11 +191,11 @@ void showBrightness(int brightness) {
 
 void setNeoPixelColorByTime(int stunde) {
   if (stunde >= NIGHT_START_HOUR || stunde < NIGHT_END_HOUR) {
-    setNeoPixelColor(pixels, pixels.Color(255, 130, 0));
+    setNeoPixelColor(pixels, pixels.Color COLOR_NIGHT);
   } else if (stunde >= MORNING_START_HOUR && stunde < MORNING_END_HOUR) {
-    setNeoPixelColor(pixels, pixels.Color(255, 50, 0));
+    setNeoPixelColor(pixels, pixels.Color COLOR_MORNING);
   } else if (stunde >= DAY_START_HOUR && stunde < DAY_END_HOUR) {
-    setNeoPixelColor(pixels, pixels.Color(0, 255, 0));    
+    setNeoPixelColor(pixels, pixels.Color COLOR_DAY);    
   } else {
     setNeoPixelColor(pixels, pixels.Color(0, 0, 0));
   }
