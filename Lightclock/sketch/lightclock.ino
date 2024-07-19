@@ -1,5 +1,4 @@
-// Uhr Sketch vom 11.02 
-
+// Uhr Sketch vom 11.02
 
 #include <Wire.h>
 #include <RTClib.h>
@@ -13,6 +12,14 @@
 #define NEOPIXEL_PIN2 10
 #define NUMPIXELS 16
 
+// Definieren Sie die Zeitpunkte für die NeoPixel-Farben
+#define NIGHT_START_HOUR 19
+#define NIGHT_END_HOUR 6
+#define MORNING_START_HOUR 6
+#define MORNING_END_HOUR 7
+#define DAY_START_HOUR 7
+#define DAY_END_HOUR 8
+
 RTC_DS1307 rtc;
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel pixels2 = Adafruit_NeoPixel(NUMPIXELS, NEOPIXEL_PIN2, NEO_GRB + NEO_KHZ800);
@@ -22,9 +29,11 @@ bool buttonState = HIGH;
 bool lastButtonState = HIGH;
 bool ring2State = false;
 unsigned long buttonPressTime = 0;
+bool longPressHandled = false;
 
 enum Mode {
   NORMAL,
+  SET_BRIGHTNESS,
   SET_HOUR,
   SET_MINUTE
 };
@@ -32,14 +41,15 @@ enum Mode {
 Mode mode = NORMAL;
 int setHour = 0;
 int setMinute = 0;
+int brightness = 50; // Initial brightness at 50%
 
 void setup() {
   Serial.begin(9600);
   Wire.begin();
   pixels.begin();
-  pixels.setBrightness(50);
+  pixels.setBrightness(map(brightness, 0, 100, 0, 255));  // Helligkeit der NeoPixel-Ringe festlegen
   pixels2.begin();
-  pixels2.setBrightness(50);
+  pixels2.setBrightness(map(brightness, 0, 100, 0, 255)); // Helligkeit des zweiten NeoPixel-Rings festlegen
   display.setBrightness(0x01);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
@@ -77,44 +87,62 @@ void loop() {
   Serial.print(":");
   Serial.println(sekunde);
 
-  showTime(stunde, minute, blink);
+  if (mode == SET_BRIGHTNESS) {
+    showBrightness(brightness);
+  } else {
+    showTime(stunde, minute, blink);
+  }
 
   setNeoPixelColorByTime(stunde);
 
   buttonState = digitalRead(BUTTON_PIN);
-  if (buttonState != lastButtonState) {
-    if (buttonState == LOW) {
-      buttonPressTime = millis();
-    } else {
-      unsigned long buttonPressDuration = millis() - buttonPressTime;
-      if (buttonPressDuration < 2000) {
-        if (mode == NORMAL) {
-          ring2State = !ring2State;
-          setNeoPixelColor(pixels2, ring2State ? pixels2.Color(255, 130, 0) : pixels2.Color(0, 0, 0));
-          pixels2.show();
-        } else if (mode == SET_HOUR) {
-          setHour = (setHour + 1) % 24;
-        } else if (mode == SET_MINUTE) {
-          setMinute = (setMinute + 1) % 60;
-        }
-      } else if (buttonPressDuration >= 5000) {
-        if (mode == NORMAL) {
-          mode = SET_HOUR;
-          setHour = stunde;
-          setMinute = minute;
-        } else if (mode == SET_HOUR) {
-          mode = SET_MINUTE;
-        } else if (mode == SET_MINUTE) {
-          mode = NORMAL;
-          rtc.adjust(DateTime(now.year(), now.month(), now.day(), setHour, setMinute, 0));
-        }
+  if (buttonState == LOW && lastButtonState == HIGH) {
+    buttonPressTime = millis();
+    longPressHandled = false;
+  } else if (buttonState == HIGH && lastButtonState == LOW) {
+    unsigned long buttonPressDuration = millis() - buttonPressTime;
+    if (buttonPressDuration < 2000 && !longPressHandled) {
+      if (mode == NORMAL) {
+        ring2State = !ring2State;
+        setNeoPixelColor(pixels2, ring2State ? pixels2.Color(255, 130, 0) : pixels2.Color(0, 0, 0));
+        pixels2.show();
+      } else if (mode == SET_BRIGHTNESS) {
+        brightness = (brightness + 5) % 105;
+        if (brightness == 0) brightness = 5;
+        pixels.setBrightness(map(brightness, 0, 100, 0, 255));
+        pixels2.setBrightness(map(brightness, 0, 100, 0, 255));
+        pixels.show();
+        pixels2.show();
+      } else if (mode == SET_HOUR) {
+        setHour = (setHour + 1) % 24;
+      } else if (mode == SET_MINUTE) {
+        setMinute = (setMinute + 1) % 60;
       }
-      buttonPressTime = 0;
     }
-    lastButtonState = buttonState;
+    buttonPressTime = 0;
   }
 
-  delay(500);
+  // Check if button is held down for more than 5 seconds
+  if (buttonState == LOW && (millis() - buttonPressTime) >= 5000 && !longPressHandled) {
+    if (mode == NORMAL) {
+      mode = SET_BRIGHTNESS;
+    } else if (mode == SET_BRIGHTNESS) {
+      mode = SET_HOUR;
+      setHour = stunde;
+      setMinute = minute;
+    } else if (mode == SET_HOUR) {
+      mode = SET_MINUTE;
+    } else if (mode == SET_MINUTE) {
+      mode = NORMAL;
+      rtc.adjust(DateTime(now.year(), now.month(), now.day(), setHour, setMinute, 0));
+    }
+    longPressHandled = true; // Mark long press as handled
+    buttonPressTime = millis(); // Reset button press time to avoid multiple mode changes
+  }
+
+  lastButtonState = buttonState;
+
+  delay(100);
 }
 
 void showTime(int stunde, int minute, bool blink) {
@@ -137,12 +165,24 @@ void showTime(int stunde, int minute, bool blink) {
   display.setSegments(data);
 }
 
+void showBrightness(int brightness) {
+  uint8_t data[] = { 0x00, 0x00, 0x00, 0x00 };
+
+  int brightnessPercentage = brightness;
+  data[3] = display.encodeDigit(brightnessPercentage % 10); // Einheiten
+  data[2] = display.encodeDigit((brightnessPercentage / 10) % 10); // Zehner
+  data[1] = display.encodeDigit((brightnessPercentage / 100) % 10); // Hunderter
+  data[0] = display.encodeDigit(0); // Stellenwert für Tausender bleibt 0
+
+  display.setSegments(data);
+}
+
 void setNeoPixelColorByTime(int stunde) {
-  if (stunde >= 19 || stunde < 6) {
+  if (stunde >= NIGHT_START_HOUR || stunde < NIGHT_END_HOUR) {
     setNeoPixelColor(pixels, pixels.Color(255, 130, 0));
-  } else if (stunde >= 6 && stunde < 7) {
+  } else if (stunde >= MORNING_START_HOUR && stunde < MORNING_END_HOUR) {
     setNeoPixelColor(pixels, pixels.Color(255, 50, 0));
-  } else if (stunde >= 7 && stunde < 8) {
+  } else if (stunde >= DAY_START_HOUR && stunde < DAY_END_HOUR) {
     setNeoPixelColor(pixels, pixels.Color(0, 255, 0));    
   } else {
     setNeoPixelColor(pixels, pixels.Color(0, 0, 0));
